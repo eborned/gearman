@@ -12,14 +12,14 @@
         }
     ],
     "require": {
-        "php": ">=5.4.0",
+        "php": ">=8.1",
         "ext-gearman": "*",
-        "psr/log": "~1",
-        "react/event-loop": "0.4.*",
-        "symfony/console": "2.*|3.4.*|4.1.*|5.*"
+        "psr/log": "^3.0",
+        "react/event-loop": "^1.4",
+        "symfony/console": "^6.0|^7.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "~4"
+        "phpunit/phpunit": "^10.0"
     },
     "autoload": {
         "psr-4": {
