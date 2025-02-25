@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 namespace Sinergi\Gearman;
 
 use GearmanException;
@@ -11,32 +13,32 @@ class Worker
     /**
      * @var GearmanWorker
      */
-    private $worker;
+    private ?GearmanWorker $worker = null;
 
     /**
      * @var Config
      */
-    private $config;
+    private Config $config;
 
     /**
      * @var LoggerInterface
      */
-    private $logger;
+    private ?LoggerInterface $logger;
 
     /**
      * @param Config $config
      * @param null|LoggerInterface $logger
      * @throws ServerConnectionException
      */
-    public function __construct(Config $config, LoggerInterface $logger = null)
-    {
-        $this->setConfig($config);
-        if (null !== $logger) {
-            $this->setLogger($logger);
-        }
+    public function __construct(
+        Config $config,
+        ?LoggerInterface $logger = null
+    ) {
+        $this->config = $config;
+        $this->logger = $logger;
     }
 
-    public function resetWorker()
+    public function resetWorker(): void
     {
         if ($this->worker instanceof GearmanWorker) {
             $this->worker->unregisterAll();
@@ -46,29 +48,34 @@ class Worker
     }
 
     /**
-     * @throws Exception\ServerConnectionException
+     * @throws ServerConnectionException
      */
-    private function createWorker()
+    private function createWorker(): void
     {
         $this->worker = new GearmanWorker();
-        $servers = $this->getConfig()->getServers();
+        $servers = $this->config->getServers();
         $exceptions = [];
+        
         foreach ($servers as $server) {
             try {
                 $this->worker->addServer($server->getHost(), $server->getPort());
             } catch (GearmanException $e) {
-                $message = 'Unable to connect to Gearman Server ' . $server->getHost() . ':' . $server->getPort();
-                if (null !== $this->logger) {
+                $message = sprintf(
+                    'Unable to connect to Gearman Server %s:%s',
+                    $server->getHost(),
+                    $server->getPort()
+                );
+                
+                if ($this->logger !== null) {
                     $this->logger->info($message);
                 }
+                
                 $exceptions[] = $message;
             }
         }
 
-        if (count($exceptions)) {
-            foreach ($exceptions as $exception) {
-                throw new ServerConnectionException($exception);
-            }
+        if (!empty($exceptions)) {
+            throw new ServerConnectionException(implode(', ', $exceptions));
         }
     }
 

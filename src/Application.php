@@ -6,8 +6,7 @@ use Exception;
 use GearmanJob;
 use Psr\Log\LoggerInterface;
 use React\EventLoop\Factory as Loop;
-use React\EventLoop\LibEventLoop;
-use React\EventLoop\StreamSelectLoop;
+use React\EventLoop\LoopInterface;
 use Serializable;
 use Sinergi\Gearman\Exception\InvalidBootstrapClassException;
 
@@ -16,75 +15,74 @@ class Application implements Serializable
     /**
      * @var Config
      */
-    private $config;
+    private Config $config;
 
     /**
      * @var Process
      */
-    private $process;
+    private Process $process;
 
     /**
      * @var array
      */
-    private $callbacks = [];
+    private array $callbacks = [];
 
     /**
      * @var StreamSelectLoop|LibEventLoop
      */
-    private $loop;
+    private ?LoopInterface $loop = null;
 
     /**
      * @var bool|resource
      */
-    private $lock = false;
+    private bool|resource $lock = false;
 
     /**
      * @var bool
      */
-    private $kill = false;
+    private bool $kill = false;
 
     /**
      * @var Worker
      */
-    private $worker;
+    private ?Worker $worker = null;
 
     /**
      * @var array
      */
-    private $jobs = [];
+    private array $jobs = [];
 
     /**
      * @var LoggerInterface
      */
-    public $logger;
+    public ?LoggerInterface $logger = null;
 
     /**
      * @var bool
      */
-    public $isAllowingJob = false;
+    public bool $isAllowingJob = false;
 
     /**
      * @var bool
      */
-    public $isBootstraped = false;
+    public bool $isBootstraped = false;
 
     /**
      * @var Application
      */
-    private static $instance;
+    private static ?self $instance = null;
 
     /**
      * gets the instance via lazy initialization (created on first usage)
      *
      * @return self
      */
-    public static function getInstance()
+    public static function getInstance(): self
     {
-        if (null === static::$instance) {
-            static::$instance = new static;
+        if (self::$instance === null) {
+            self::$instance = new self();
         }
-
-        return static::$instance;
+        return self::$instance;
     }
 
     /**
@@ -93,23 +91,22 @@ class Application implements Serializable
      * @param Process $process
      * @param LoggerInterface|null $logger
      */
-    public function __construct(Config $config = null, Process $process = null, $loop = null, LoggerInterface $logger = null)
-    {
-        static::$instance = $this;
+    public function __construct(
+        ?Config $config = null,
+        ?Process $process = null,
+        ?LoopInterface $loop = null,
+        ?LoggerInterface $logger = null
+    ) {
+        self::$instance = $this;
 
-        if (null === $config) {
-            $config = Config::getInstance();
-        }
-        $this->setConfig($config);
-
-        if (null !== $logger) {
-            $this->setLogger($logger);
-        }
-
-        if (null !== $process) {
+        $this->config = $config ?? Config::getInstance();
+        $this->logger = $logger;
+        
+        if ($process !== null) {
             $this->setProcess($process);
         }
-        if ($loop instanceof StreamSelectLoop || $loop instanceof LibEventLoop) {
+        
+        if ($loop !== null) {
             $this->setLoop($loop);
         }
     }
@@ -340,16 +337,19 @@ class Application implements Serializable
      * @param Application $root
      * @return mixed
      */
-    public function executeJob(JobInterface $job, GearmanJob $gearmanJob, Application $root)
+    public function executeJob(JobInterface $job, GearmanJob $gearmanJob, self $root): mixed
     {
         if ($root->getConfig()->getAutoUpdate() && !$root->isAllowingJob) {
             $root->restart();
             return null;
         }
+        
         $root->isAllowingJob = false;
-        if (null !== $root->logger) {
+        
+        if ($root->logger !== null) {
             $root->logger->info("Executing job {$job->getName()}");
         }
+        
         return $job->execute($gearmanJob);
     }
 
@@ -499,55 +499,37 @@ class Application implements Serializable
     }
 
     /**
-     * @return LoggerInterface
-     */
-    public function getLogger()
-    {
-        return $this->logger;
-    }
-
-    /**
-     * @param LoggerInterface $logger
-     * @return $this
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
-        return $this;
-    }
-
-    /**
      * @return string
      */
-    public function serialize()
+    public function serialize(): string
     {
-        return serialize([
-            'config' => $this->getConfig(),
-            'isBootstraped' => false,
-            'isAllowingJob' => true
-        ]);
+        return serialize($this->__serialize());
     }
 
-    /**
-     * @param string $serialized
-     */
-    public function unserialize($serialized)
+    public function __serialize(): array
     {
-        $data = unserialize($serialized);
+        return [
+            'config' => $this->config,
+            'process' => $this->process,
+            'callbacks' => $this->callbacks,
+            'jobs' => $this->jobs,
+            'isAllowingJob' => $this->isAllowingJob,
+            'isBootstraped' => $this->isBootstraped
+        ];
+    }
 
-        if (isset($data['config'])) {
-            $this->setConfig($data['config']);
-        }
+    public function unserialize(string $data): void
+    {
+        $this->__unserialize(unserialize($data));
+    }
 
-        $process = new Process($this->getConfig(), $this->getLogger());
-        $this->setProcess($process);
-
-        if (isset($data['isAllowingJob'])) {
-            $this->isAllowingJob = $data['isAllowingJob'];
-        }
-
-        if (isset($data['isBootstraped'])) {
-            $this->isBootstraped = $data['isBootstraped'];
-        }
+    public function __unserialize(array $data): void
+    {
+        $this->config = $data['config'];
+        $this->process = $data['process'];
+        $this->callbacks = $data['callbacks'];
+        $this->jobs = $data['jobs'];
+        $this->isAllowingJob = $data['isAllowingJob'];
+        $this->isBootstraped = $data['isBootstraped'];
     }
 }

@@ -21,6 +21,7 @@ _**Todo:** Tests are working but could cover more._
 6. [Dispatcher usage](#dispatcher-usage)
 7. [Start workers daemon](#start-workers-daemon)
 8. [Usage with Supervisor](#usage-with-supervisor)
+9. [PHP 8.4 Compatibility](#php-8-4-compatibility)
 
 <a name="requirements"></a>
 ## Requirements
@@ -191,3 +192,22 @@ numprocs=12
 autostart=true
 autorestart=true
 ```
+
+<a name="php-8-4-compatibility"></a>
+## PHP 8.4 Compatibility
+
+This library has been updated to support PHP 8.4+ with the following improvements:
+
+- Strong type declarations throughout the codebase
+- Modern property declarations
+- Updated serialization methods
+- Improved error handling
+- Modern dependency versions
+- Strict typing enabled
+- Updated PHPUnit testing suite
+
+To use with PHP 8.4+, ensure you have:
+
+- PHP 8.4 or higher
+- Latest PECL Gearman extension
+- Gearman 1.0+ server
